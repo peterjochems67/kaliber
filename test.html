@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kaliber – anslutningstest</title>
+<style>
+body{font:18px/1.45 -apple-system,system-ui,sans-serif;max-width:640px;margin:0 auto;padding:24px 18px;color:#1f2430;background:#f6f5f1}
+h1{font-size:24px;margin:0 0 6px}p{margin:6px 0 18px;color:#555}
+.t{background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:14px 16px;margin:12px 0}
+.t b{display:block;margin-bottom:4px}.ok{color:#1b7a3d;font-weight:700}.fel{color:#c62828;font-weight:700}.w{color:#e08a00;font-weight:700}
+small{color:#777;word-break:break-all}
+button{font:inherit;padding:12px 20px;border-radius:10px;border:0;background:#1f2430;color:#fff;margin-top:8px}
+</style></head><body>
+<h1>Kaliber – anslutningstest</h1>
+<p>Testar att den här sidan kan prata med Kaliber utan att Google-inloggning behövs. Inget sparas och ingen riktig data visas.</p>
+<div class="t"><b>Test 1: nå Kaliber (GET)</b><span id="r1" class="w">Väntar…</span><br><small id="d1"></small></div>
+<div class="t"><b>Test 2: skicka ett anrop (POST)</b><span id="r2" class="w">Väntar…</span><br><small id="d2"></small></div>
+<div class="t"><b>Din webbläsare</b><small id="ua"></small></div>
+<button onclick="run()">Kör testet igen</button>
+<script>
+var URL_='https://script.google.com/macros/s/AKfycbxOLDUvevFTBSp_XJX-pD_5_sFVWn-bL86J6GfBhLvXrKmhKwmXhU9LxzLLK0jo_qib5A/exec';
+document.getElementById('ua').textContent=navigator.userAgent;
+function set(i,ok,msg,det){var r=document.getElementById('r'+i);r.className=ok?'ok':'fel';r.textContent=(ok?'OK – ':'FEL – ')+msg;document.getElementById('d'+i).textContent=det||'';}
+async function run(){
+ ['1','2'].forEach(function(i){var r=document.getElementById('r'+i);r.className='w';r.textContent='Väntar…';document.getElementById('d'+i).textContent='';});
+ try{var a=await fetch(URL_+'?test=1',{credentials:'omit',redirect:'follow'});var t=await a.text();
+  set(1,a.ok,'svar '+a.status+', '+t.length+' tecken',t.slice(0,80).replace(/\s+/g,' '));}
+ catch(e){set(1,false,'kom inte fram',String(e));}
+ try{var b=await fetch(URL_,{method:'POST',credentials:'omit',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:'test'})});var j=await b.text();
+  var ok=false;try{ok=JSON.parse(j).error==='unauthorized';}catch(e){}
+  set(2,ok,ok?'Kaliber svarade (avvisade testet som väntat)':'oväntat svar '+b.status,j.slice(0,120));}
+ catch(e){set(2,false,'kom inte fram',String(e));}
+}
+run();
+</script></body></html>
