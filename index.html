@@ -1,24 +1,88 @@
 <!doctype html>
-<html lang="sv">
-<head>
-<meta charset="utf-8">
-<title>Kaliber</title>
+<html lang="sv"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Kaliber">
-<meta name="theme-color" content="#14213D">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Kaliber">
+<title>Kaliber</title>
 <style>
-html,body{margin:0;height:100%;background:#14213D}
-iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff}
-#fb{position:fixed;left:0;right:0;bottom:0;padding:8px 12px;background:#14213D;color:#fff;font:13px Arial,sans-serif;text-align:center}
-#fb a{color:#C9A24B}
-</style>
-</head>
-<body>
-<iframe id="app" title="Kaliber" allow="clipboard-write"
-  src="https://script.google.com/macros/s/AKfycbxOLDUvevFTBSp_XJX-pD_5_sFVWn-bL86J6GfBhLvXrKmhKwmXhU9LxzLLK0jo_qib5A/exec"></iframe>
-<div id="fb" hidden>Visas inte menyn? <a href="https://script.google.com/macros/s/AKfycbxOLDUvevFTBSp_XJX-pD_5_sFVWn-bL86J6GfBhLvXrKmhKwmXhU9LxzLLK0jo_qib5A/exec" target="_top">Öppna Kaliber direkt</a></div>
-<script>setTimeout(function(){document.getElementById('fb').hidden=false},9000)</script>
-</body>
-</html>
+:root{--bg:#F6F5F1;--panel:#fff;--border:#E8E6E0;--text:#1F2430;--muted:#6B7280;--red:#E4142F;--btn:#1F2430;--btnt:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#15171c;--panel:#1d2027;--border:#2c303a;--text:#e8eaee;--muted:#9aa1ae;--red:#ff4d63;--btn:#e8eaee;--btnt:#15171c}}
+html,body{margin:0;background:var(--bg);color:var(--text);font:17px/1.4 -apple-system,system-ui,"Segoe UI",sans-serif;min-height:100%}
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px 16px;box-sizing:border-box}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 1px 3px rgba(31,36,48,.08);border-top:3px solid var(--red)}
+h1{margin:0 0 4px;font-size:26px;letter-spacing:.5px}.sub{margin:0 0 18px;color:var(--muted);font-size:15px}
+input{width:100%;box-sizing:border-box;font:inherit;padding:12px 14px;margin:0 0 10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text)}
+button.go{width:100%;font:inherit;font-weight:600;padding:13px;border:0;border-radius:10px;background:var(--btn);color:var(--btnt);cursor:pointer}
+button.go:disabled{opacity:.6}.link{background:none;border:0;color:var(--muted);font:inherit;font-size:14px;margin-top:14px;padding:0;text-decoration:underline;cursor:pointer}
+#msg{color:var(--red);font-size:15px;min-height:20px;margin:6px 0 0}#ok{color:var(--muted);font-size:14px;margin-top:10px}
+#forgot{display:none;margin-top:12px}
+</style></head><body>
+<div class="card" id="card">
+<h1>Kaliber</h1><p class="sub" id="sub">Logga in med namn och lösenord</p>
+<form id="f" autocomplete="on">
+<input id="u" name="username" placeholder="Namn" autocomplete="username" autocapitalize="words" autofocus>
+<input id="p" name="password" type="password" placeholder="Lösenord" autocomplete="current-password">
+<button class="go" id="b" type="submit">Logga in</button>
+</form>
+<div id="msg"></div>
+<button class="link" id="fl" type="button">Glömt lösenordet?</button>
+<div id="forgot"><input id="fn" placeholder="Ditt namn"><button class="go" id="fb" type="button">Skicka nytt lösenord</button><div id="ok"></div></div>
+</div>
+<script>
+var EXEC='https://script.google.com/macros/s/AKfycbxOLDUvevFTBSp_XJX-pD_5_sFVWn-bL86J6GfBhLvXrKmhKwmXhU9LxzLLK0jo_qib5A/exec';
+var BASE=location.href.split('#')[0].split('?')[0].replace(/index\.html$/,'');
+var $=function(i){return document.getElementById(i);};
+function post(o){return fetch(EXEC,{method:'POST',credentials:'omit',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(o)}).then(function(r){return r.json();});}
+/* Ersätter Googles google.script.run: samma anrop, men via vanliga webbanrop till Kalibers motor. */
+function shim(EXEC,BASE){
+  function rpc(fn,args){return fetch(EXEC,{method:'POST',credentials:'omit',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({rpc:'call',fn:fn,args:args})}).then(function(r){return r.json();});}
+  function mk(s,f,u){return new Proxy({},{get:function(_,p){
+    if(p==='withSuccessHandler')return function(h){return mk(h,f,u);};
+    if(p==='withFailureHandler')return function(h){return mk(s,h,u);};
+    if(p==='withUserObject')return function(o){return mk(s,f,o);};
+    if(typeof p!=='string')return undefined;
+    return function(){var a=Array.prototype.slice.call(arguments);
+      rpc(p,a).then(function(r){
+        if(r&&r.ok){if(s)s(r.result,u);}
+        else{var e=new Error((r&&r.error)||'Okänt fel');if(f)f(e,u);else console.error(e);}
+      },function(err){var e=new Error('Kunde inte nå servern. Kontrollera nätverket och försök igen.');if(f)f(e,u);else console.error(e,err);});
+    };
+  }});}
+  window.google={script:{run:mk(null,null,undefined)}};
+  try{
+    document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a'):null;if(a&&a.href===BASE){try{sessionStorage.removeItem('kal');}catch(x){}}},true);
+  }catch(e){}
+}
+function show(html){
+  var inj='<script>('+shim.toString()+')('+JSON.stringify(EXEC)+','+JSON.stringify(BASE)+');<\/script>';
+  html=/<head[^>]*>/i.test(html)?html.replace(/<head[^>]*>/i,function(m){return m+inj;}):inj+html;
+  document.open();document.write(html);document.close();
+}
+function login(o){
+  o.rpc='login';o.base=BASE;
+  return post(o).then(function(r){
+    if(r&&r.ok&&r.html){try{if(r.token&&r.menu)sessionStorage.setItem('kal',JSON.stringify({t:r.token,m:r.menu}));}catch(e){}show(r.html);return true;}
+    return r||{ok:false};
+  });
+}
+function fail(msg){$('b').disabled=false;$('b').textContent='Logga in';$('msg').textContent=msg;$('card').style.visibility='visible';}
+$('f').addEventListener('submit',function(e){
+  e.preventDefault();var u=$('u').value.trim(),p=$('p').value;if(!u||!p){$('msg').textContent='Skriv namn och lösenord.';return;}
+  $('b').disabled=true;$('b').textContent='Loggar in…';$('msg').textContent='';
+  login({user:u,pw:p}).then(function(r){
+    if(r===true)return;
+    fail(r&&r.locked?'För många försök. Vänta en stund och försök igen.':(r&&r.error?r.error:'Fel namn eller lösenord.'));
+  }).catch(function(){fail('Kunde inte nå Kaliber. Kontrollera nätverket och försök igen.');});
+});
+$('fl').onclick=function(){$('forgot').style.display='block';this.style.display='none';$('fn').value=$('u').value;};
+$('fb').onclick=function(){var n=$('fn').value.trim();if(!n)return;var b=this;b.disabled=true;b.textContent='Skickar…';
+  post({rpc:'call',fn:'resetPassword',args:[n]}).then(function(){$('ok').textContent='Om namnet finns har ett nytt lösenord skickats till den sparade mejladressen.';b.style.display='none';})
+  .catch(function(){$('ok').textContent='Något gick fel, försök igen.';b.disabled=false;b.textContent='Skicka nytt lösenord';});};
+/* Återuppta: byte av meny (?t=&meny=) eller pågående session i den här fliken. */
+(function(){
+  var q=new URLSearchParams(location.search),t=q.get('t'),m=q.get('meny');
+  if(!(t&&m)){try{var s=JSON.parse(sessionStorage.getItem('kal')||'null');if(s&&s.t&&s.m){t=s.t;m=s.m;}}catch(e){}}
+  if(t&&m){$('card').style.visibility='hidden';
+    login({t:t,meny:m}).then(function(r){if(r!==true){try{sessionStorage.removeItem('kal');}catch(e){}$('card').style.visibility='visible';}})
+    .catch(function(){$('card').style.visibility='visible';});}
+})();
+</script></body></html>
